@@ -1,0 +1,22 @@
+{
+    "name": "paperjs-node",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "type": "commonjs",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC",
+    "engines": {
+        "node": "18.x"
+    },
+    "dependencies": {
+        "canvas": "^2.11.2",
+        "jsdom": "^24.0.0",
+        "paper-jsdom": "^0.12.17",
+        "paper-jsdom-canvas": "^0.12.17",
+        "svgdom": "^0.1.19"
+    }
+}
