@@ -1,4 +1,6 @@
-const { PaperScope } = require("paper");
+console.time("svg");
+
+const { PaperScope } = require("paper-jsdom-canvas");
 const fs = require("fs");
 const { boundaries, deviationSlabs, humphreySlabs } = require("./boundaries");
 const { radiusLogo, deviationImages, humphreyImages } = require("./consts");
@@ -15,6 +17,7 @@ const generateSvg = async ({ report }) => {
   console.log(`🚀 > generateSvg > svgContent:`, svgContent);
   // fs.writeFileSync("red_rectangle1.svg", svgContent, "utf8");
   console.log("Success");
+  console.timeEnd("svg");
 };
 
 /**
