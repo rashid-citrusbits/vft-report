@@ -3,37 +3,51 @@ const canvas = require("canvas"); // workaround for lambda node-canvas layer
 const { PaperScope } = require("paper-jsdom-canvas");
 const { boundaries, deviationSlabs, humphreySlabs } = require("./boundaries");
 const { radiusLogo, deviationImages, humphreyImages } = require("./consts");
+// const fs = require("fs");
 
-const generateSvg = async ({ report }) => {
+const generateSvgs = async (orders) => {
+  const svgs = await Promise.all(
+    orders.map((order, i) => generateSvg(order, i))
+  );
+
+  return svgs.reduce((acc, item) => ({ ...acc, ...item }), {});
+};
+
+const generateSvg = async (order, i) => {
+  console.time("single-svg-" + i);
   const paper = new PaperScope();
   paper.setup(new paper.Size(1100, (1100 / 8) * 12));
   // ABOVE REPORT
 
-  await generateReport(paper, report);
+  // await generateReport(paper, order);
 
   // BELOW REPORT
   const svgContent = paper.project.exportSVG({ asString: true });
+  // fs.writeFileSync(`report-${i + 1}.svg`, svgContent, "utf8");
+  paper.project.clear();
 
-  return svgContent;
+  console.timeEnd("single-svg-" + i);
+
+  return { [order.id]: svgContent };
 };
 
 /**
  * @param {import('paper').PaperScope} paper
- * @param {Object} report
+ * @param {Object} order
  */
-const generateReport = async (paper, report) => {
+const generateReport = async (paper, order) => {
   // prettier-ignore
-  const trialResults = report.VFTResult.trialResults.results.map(r => ({ x: Number(String(r.degH).trim())+30, y: 30-Number(String(r.degV).trim()), value: String(r.sensitivityDB).trim() }))
+  const trialResults = order.VFTResult.trialResults.results.map(r => ({ x: Number(String(r.degH).trim())+30, y: 30-Number(String(r.degV).trim()), value: String(r.sensitivityDB).trim() }))
   // prettier-ignore
-  const patternDeviation = report.VFTResult.deviationResults.map(r => ({ x: Number(String(r.degH).trim())+30, y: 30-Number(String(r.degV).trim()), value: Number(String(r.patDev).trim()) }))
+  const patternDeviation = order.VFTResult.deviationResults.map(r => ({ x: Number(String(r.degH).trim())+30, y: 30-Number(String(r.degV).trim()), value: Number(String(r.patDev).trim()) }))
   // prettier-ignore
-  const totalDeviation = report.VFTResult.deviationResults.map(r => ({ x: Number(String(r.degH).trim())+30, y: 30-Number(String(r.degV).trim()), value: Number(String(r.totalDev).trim()) }))
+  const totalDeviation = order.VFTResult.deviationResults.map(r => ({ x: Number(String(r.degH).trim())+30, y: 30-Number(String(r.degV).trim()), value: Number(String(r.totalDev).trim()) }))
   // prettier-ignore
-  const totalDeviationGray = report.VFTResult.deviationResults.map(r => ({ x: Number(String(r.degH).trim()) + 30, y: 30 - Number(String(r.degV).trim()), value: Number(String(r.totalGray).trim()) }))
+  const totalDeviationGray = order.VFTResult.deviationResults.map(r => ({ x: Number(String(r.degH).trim()) + 30, y: 30 - Number(String(r.degV).trim()), value: Number(String(r.totalGray).trim()) }))
   // prettier-ignore
-  const patternDeviationGray = report.VFTResult.deviationResults.map(r => ({ x: Number(String(r.degH).trim()) + 30, y: 30 - Number(String(r.degV).trim()), value: Number(String(r.patGray).trim()) }))
+  const patternDeviationGray = order.VFTResult.deviationResults.map(r => ({ x: Number(String(r.degH).trim()) + 30, y: 30 - Number(String(r.degV).trim()), value: Number(String(r.patGray).trim()) }))
 
-  const interpolatedResults = report.VFTResult.interpolatedResults;
+  const interpolatedResults = order.VFTResult.interpolatedResults;
 
   let interpolation = interpolatedResults.interpolatedData
     .flatMap((row, rI) =>
@@ -48,15 +62,14 @@ const generateReport = async (paper, report) => {
 
   // console.log(JSON.stringify(interpolation.filter((r) => r.value === 0)));
 
-  if (report.chartType === "24-2") {
+  if (order.chartType === "24-2") {
     interpolation = interpolation.filter(
-      (i) =>
-        boundaries[report.chartType][report.occula][`${i.x},${i.y}`] !== true
+      (i) => boundaries[order.chartType][order.occula][`${i.x},${i.y}`] !== true
     );
   }
-  if (report.chartType === "10-2") {
+  if (order.chartType === "10-2") {
     interpolation = interpolation.filter(
-      (i) => boundaries[report.chartType][`${i.x},${i.y}`] !== true
+      (i) => boundaries[order.chartType][`${i.x},${i.y}`] !== true
     );
   }
 
@@ -69,7 +82,7 @@ const generateReport = async (paper, report) => {
   let textChartOffset = 0;
   let axisLabel = "30";
 
-  if (String(report.chartType || "").trim() === "10-2") {
+  if (String(order.chartType || "").trim() === "10-2") {
     textChartScale = 18;
     imageChartScale = 12;
     imageChartOffset = 180;
@@ -306,7 +319,7 @@ const generateReport = async (paper, report) => {
 
   const texts = [
     {
-      content: "Visual Field Test - " + report.occula,
+      content: "Visual Field Test - " + order.occula,
       point: [5, 5],
       fontSize: 4,
     },
@@ -319,24 +332,27 @@ const generateReport = async (paper, report) => {
     {
       content:
         "Eye: " +
-        (report.occula.trim().toUpperCase() === "OD" ? "Right" : "Left"),
+        (order.occula.trim().toUpperCase() === "OD" ? "Right" : "Left"),
       point: [120, 12],
     },
 
     {
-      content: "Name: @TODO",
+      content: String("Name: ")
+        .concat(order?.patient?.lastName || "")
+        .concat(", ")
+        .concat(order?.patient?.firstName || ""),
       point: [5, 19],
     },
     {
-      content: "Patient ID: @TODO",
+      content: String("Patient ID: ").concat(order?.patient?.ehrID || "N/A"),
       point: [5, 23],
     },
     {
-      content: "DOB: @TODO",
+      content: String("DOB: ").concat(order?.patient?.dateofBirth || "-"),
       point: [120, 19],
     },
     {
-      content: report.chartType + " Threshold Test",
+      content: order.chartType + " Threshold Test",
       point: [5, 32],
     },
     {
@@ -350,23 +366,23 @@ const generateReport = async (paper, report) => {
     {
       content:
         "Fixation Losses: " +
-        getReliabilityValue(report.VFTResult.reliabilityIndices.FL),
+        getReliabilityValue(order.VFTResult.reliabilityIndices.FL),
       point: [5, 47],
     },
     {
       content:
         "False POS Errors: " +
-        getReliabilityValue(report.VFTResult.reliabilityIndices.FP),
+        getReliabilityValue(order.VFTResult.reliabilityIndices.FP),
       point: [5, 51],
     },
     {
       content:
         "False NEG Errors: " +
-        getReliabilityValue(report.VFTResult.reliabilityIndices.FN),
+        getReliabilityValue(order.VFTResult.reliabilityIndices.FN),
       point: [5, 55],
     },
     {
-      content: "Test Duration: " + report.VFTResult.testResultTime,
+      content: "Test Duration: " + order.VFTResult.testResultTime,
       point: [5, 59],
     },
     {
@@ -379,7 +395,7 @@ const generateReport = async (paper, report) => {
     },
     {
       content:
-        "Strategy: " + report.VFTResult.testStrategy === "Fast"
+        "Strategy: " + order.VFTResult.testStrategy === "Fast"
           ? "RATA Fast"
           : "RATA Standard",
       point: [70, 47],
@@ -388,7 +404,7 @@ const generateReport = async (paper, report) => {
       content:
         "Date: " +
         new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
-          new Date(report.patientResponseAt)
+          new Date(order.patientResponseAt)
         ),
       point: [120, 39],
     },
@@ -396,24 +412,24 @@ const generateReport = async (paper, report) => {
       content:
         "Time: " +
         new Intl.DateTimeFormat("en-US", { timeStyle: "medium" }).format(
-          new Date(report.patientResponseAt)
+          new Date(order.patientResponseAt)
         ),
       point: [120, 43],
     },
     {
-      content: "Age: @TODO",
+      content: String("Age: ").concat(order?.patient?.age || "N/A"),
       point: [120, 47],
     },
     {
-      content: "VFI: " + report.VFTResult.diagnosticIndices.VFI,
+      content: "VFI: " + order.VFTResult.diagnosticIndices.VFI,
       point: [140, 114],
     },
     {
-      content: report.VFTResult.diagnosticIndices.MDValue,
+      content: order.VFTResult.diagnosticIndices.MDValue,
       point: [140, 118],
     },
     {
-      content: "PSD:" + report.VFTResult.diagnosticIndices.PSD,
+      content: "PSD:" + order.VFTResult.diagnosticIndices.PSD,
       point: [140, 122],
     },
   ];
@@ -427,4 +443,4 @@ const generateReport = async (paper, report) => {
   });
 };
 
-module.exports = { generateSvg };
+module.exports = { generateSvgs };
