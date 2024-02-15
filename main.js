@@ -1,7 +1,6 @@
-console.time("svg");
-
+// eslint-disable-next-line
+const canvas = require("canvas"); // workaround for lambda node-canvas layer
 const { PaperScope } = require("paper-jsdom-canvas");
-const fs = require("fs");
 const { boundaries, deviationSlabs, humphreySlabs } = require("./boundaries");
 const { radiusLogo, deviationImages, humphreyImages } = require("./consts");
 
@@ -14,10 +13,8 @@ const generateSvg = async ({ report }) => {
 
   // BELOW REPORT
   const svgContent = paper.project.exportSVG({ asString: true });
-  console.log(`🚀 > generateSvg > svgContent:`, svgContent);
-  // fs.writeFileSync("red_rectangle1.svg", svgContent, "utf8");
-  console.log("Success");
-  console.timeEnd("svg");
+
+  return svgContent;
 };
 
 /**
@@ -92,21 +89,6 @@ const generateReport = async (paper, report) => {
   const backgroundColor = "#efefef";
   const axisColor = "#aaa";
 
-  // let i = 0;
-  // for (const slab of deviationSlabs) {
-  //   i++;
-  //   const item = await new Promise((resolve, reject) => {
-  //     paper.project.importSVG(deviationImages[slab], function (item) {
-  //       resolve(item);
-  //     });
-  //   });
-  //   item.position = {
-  //     x: (imageChartScale + 15) * i,
-  //     y: (imageChartScale + 15) * i,
-  //   };
-  // }
-  // return;
-
   await new Promise((resolve, reject) => {
     const logo = new paper.Raster(radiusLogo);
     logo.onLoad = () => {
@@ -124,7 +106,6 @@ const generateReport = async (paper, report) => {
       new paper.Path.Rectangle({
         point: [startX, startY],
         size: totalPixels * scale,
-        // parent: originals,
         fillColor: backgroundColor,
       });
     };

@@ -1,14 +1,6 @@
 const { generateSvg } = require("./main");
 
 module.exports.handler = async (event) => {
-  // Check if the request method is POST
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: "Method Not Allowed",
-    };
-  }
-
   // Parse the event body as JSON
   const requestBody = JSON.parse(event.body);
 
@@ -18,7 +10,9 @@ module.exports.handler = async (event) => {
   console.log(`🚀 > handler > data:`, report);
 
   try {
-    const svg = generateSvg({ report });
+    console.time("svg");
+    const svg = await generateSvg({ report });
+    console.timeEnd("svg");
 
     return {
       statusCode: 200,
@@ -30,6 +24,8 @@ module.exports.handler = async (event) => {
   } catch (error) {
     console.log(`🚀 > module.exports.handler= > error:`, error);
   }
+
+  console.log("Something went wrong");
 
   return {
     statusCode: 500,
